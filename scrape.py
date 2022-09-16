@@ -44,23 +44,40 @@ def get_SKK(iso="SWE", org="SKK"):
     # Retrieve SKK data and parse based on structure
     # Transboundary name is blank, needs filling in through translation
     # Updated Sept 15 2022
-    breeds = list()
+    breeds = dict()
     soup = retrieve_html("https://hundar.skk.se/hunddata/Hund_sok.aspx#")
     breednameDiv = soup.find_all("div", {"class": "col-sm-3"})
     for htmlblock in breednameDiv:
         try:
             for option in htmlblock.find_all('option'):
                 if option['value'] != "":
-                    breeds.append(option.text)
+                    breed = option.text.replace('"', "")
+                    urlBreed = breed.replace(" ", "-")
+                    breeds[breed] = "https://www.skk.se/sv/hundraser/" + urlBreed
             if len(breeds) > 0:
-                return pd.DataFrame(list(zip([""] * len(breeds), [org] * len(breeds),
+                #breedData = pd.DataFrame.from_dict(breeds, orient='index', columns=["Source"])
+                return pd.DataFrame(list(zip(breeds.values(), [org] * len(breeds),
                                          [iso] * len(breeds), [""] * len(breeds))),
-                                         index=breeds, columns=["Source", "Organization", "Country",
+                                         index=breeds.keys(), columns=["Source", "Organization", "Country",
                                                                 "TransboundaryName"])
 
         except AttributeError:
             continue
 
+def get_IDog():
+    # Automate retrieval of number of entries
+    url = "https://ngdc.cncb.ac.cn/idog/breed/getAllBreed.action?totalCount=481&pageNo=1&rowCount=481&isFirstSearchFlag=0&pageSize="
+    soup = retrieve_html(url)
+    breednameDiv = soup.find_all("div", {"class": "media-body"})
+    print(len(breednameDiv))
+    for breed in breednameDiv:
+        print(breed)
+        exit(0)
+    #for litag in ultag.find_all('li'):
+    #link = litag.find(href=True)
+
+
 if __name__ == '__main__':
-    breeds = pd.concat([get_AKC(), get_UKC(), get_SKK()])
-    breeds.to_csv("scraped_breed_data.csv")
+    #breeds = pd.concat([get_AKC(), get_UKC(), get_SKK()])
+    #breeds.to_csv("scraped_breed_data.csv")
+    get_IDog()
