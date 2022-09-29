@@ -4,17 +4,6 @@ from fuzzywuzzy import fuzz
 import pandas as pd
 import spacy
 
-def parse_fields(old_text, new_text, orig_str):
-    """Function adapted from stackoverflow user nehem
-    https://stackoverflow.com/questions/34197917/python-fuzzy-search-and-replace"""
-    nlp = spacy.load('en_core_web_lg')
-    parsed_doc = nlp(orig_str)
-    parts = [token.pos_ for token in parsed_doc]
-    entry = parsed_doc[parts.index("PUNCT")+1:]
-    print(entry)
-    #print([token.pos_ for token in parsed_doc]) #if token.pos_ not in ["SYM", "PUNCT", "SPACE"]]))
-    exit(0)
-
 def retrieve_html(URL):
     """Pulls HTML from IDog and identify the block containing breed info based on
     div tag (ad hoc)
@@ -24,9 +13,33 @@ def retrieve_html(URL):
     soup = BeautifulSoup(page.content, "html.parser")
     return soup.find("div", {"class": "col-xs-12 col-sm-12 col-md-9"})
 
+def parse_fields(text):
+    """Use spacy to identify text of entry in a form"""
+    nlp = spacy.load('en_core_web_lg')
+    parsed_doc = nlp(text)
+    parts = [token.pos_ for token in parsed_doc]
+    entry = parsed_doc[parts.index("PUNCT")+1:].text_with_ws
+    return entry
+
+def parse_list(text):
+    """Use spacy to identify items in a list separated by punctuation"""
+    print(parsed_doc)
+    items = list()
+    punc = [i for i in range(len(parsed_doc)) if parsed_doc[i].pos_ == "PUNCT"]
+    if len(punc) == 0:
+        return [parsed_doc]
+    else:
+        start = 0
+        for pmarkindex in punc:
+            items.append(parsed_doc[start:pmarkindex])
+            start = pmarkindex + 1
+        if start < len(parsed_doc):
+            items.append(parsed_doc[start:])
+        print(items)
+        #return entry
+
 def identifyFields(fieldIDs, text):
     """Extract basic breed information from below photo (ad hoc)
-    May be able to use fuzzywuzzy to make more robust
     input:
           dictionary: fields (keys) and exact text demarcating fields (values)
           string: .text of relevant section of html
@@ -48,8 +61,10 @@ def identifyFields(fieldIDs, text):
             if len(line) > 0:
                 scores.append(fuzz.partial_ratio(fieldDesc, line))
         match = lines[scores.index(max(scores))]
-        extractedInfo[field] = parse_fields(fieldDesc, "", match)
-        print(extractedInfo[field])
+        if field != "breed name source":
+            extractedInfo[field] = parse_fields(match)
+        else:
+            extractedInfo[field] = match.replace("from ", "")
     return extractedInfo
 
 def parse_recognition(text):
@@ -66,18 +81,13 @@ def parse_recognition(text):
     return dict(zip([clubNames[i] for i, x in enumerate(clubLinks) if x != ""],
                     [l for l in clubLinks if l != ""]))
 
-def parse_names(text):
-    nlp = spacy.load('en_core_web_lg')
-    tokens = nlp(text)
-    print(tokens)
-
 if __name__ == '__main__':
     # Define dictionaries to store data
     breed_summary = dict()
     approval_data = dict()
 
     # Iterate through entries in iDog database
-    i = 1
+    i = 2
     while i != 0 and i < 10:
         url = "https://ngdc.cncb.ac.cn/idog/breed/getBreedDetail.action?breedId=" + str(i)
         breedData = retrieve_html(url)
@@ -92,7 +102,9 @@ if __name__ == '__main__':
         if basicInfo is None:
             i = 0
             continue
-        parse_names(basicInfo["other name"])
+        parse_list(basicInfo["common name"])
+        print(parse_list(basicInfo["other name"]))
+        exit(0)
 
         # Now extract iDog info
         detailInfoRaw = breedData.find("div", {"class": "col-xs-12 col-sm-7"}).text
@@ -101,7 +113,6 @@ if __name__ == '__main__':
         recognitionInfoRaw = breedData.find("div", {"class": "table-responsive"})
         basicInfo["recognition"] = parse_recognition(recognitionInfoRaw)
 
-        print(basicInfo)
         breed_summary[basicInfo["breed name"]] = [
             basicInfo['iDog identifier'], url, basicInfo["other name"] + "," + basicInfo["common name"]
         ]
