@@ -23,8 +23,8 @@ def parse_fields(text):
 
 def parse_list(text):
     """Identify items in a list separated by punctuation. iDog seems to use commas UNTIL
-    it encounters a name with a comma, and then it switched to semicolons. I coded this pattern here"""
-
+    it encounters a name with a comma, and then it switched to semicolons. It also sometimes uses "or" to
+    separate different names. I coded these patterns here"""
     if text is None:
         return []
 
@@ -52,9 +52,6 @@ def identifyFields(fieldIDs, text):
     returns:
           dictionary: fields (keys of input dictionary) with the values extracted
           Unless page is empty, in which case it returns None
-
-    Note: should we switch to fuzzy replacement?
-    See: https://www.imranabdullah.com/2021-09-17/Fuzzy-word-replace-from-string-in-Python
     """
     extractedInfo = dict()
     lines = [line.strip() for line in text.splitlines() if len(line.strip()) > 0]
@@ -93,13 +90,13 @@ if __name__ == '__main__':
     approval_data = dict()
 
     # Iterate through entries in iDog database
-    i = 5
-    while i != 0 and i < 10:
+    i = 1
+    while i != 0 and i < 11: # < is just for testing to keep the dataset small-ish
         url = "https://ngdc.cncb.ac.cn/idog/breed/getBreedDetail.action?breedId=" + str(i)
         breedData = retrieve_html(url)
 
         # The "find" functions use the html coding I identified just by looking at the page source
-        # There are two separate sections demarcated with div. The text used to
+        # There are two separate sections demarcated with div
         basicInfoRaw = breedData.find("div", {"class": "col-xs-12 col-sm-4 col-sm-offset-1"}).text
         basicInfo = identifyFields({"breed name": "Web Source Name:",
                                     "breed name source": "from ",
@@ -109,27 +106,35 @@ if __name__ == '__main__':
             i = 0
             continue
         names = parse_list(basicInfo["common name"]) + parse_list(basicInfo["other name"])
-        print(names)
 
         # Now extract iDog info
         detailInfoRaw = breedData.find("div", {"class": "col-xs-12 col-sm-7"}).text
         basicInfo.update(identifyFields({"iDog identifier": "iDog Breed Number: ",
                                          "origin": "Original: "}, detailInfoRaw))
         recognitionInfoRaw = breedData.find("div", {"class": "table-responsive"})
-        basicInfo["recognition"] = parse_recognition(recognitionInfoRaw)
 
         breed_summary[basicInfo["breed name"]] = [basicInfo['iDog identifier'], url,
-                                                  "| ".join([n for n in names if len(n) > 0])]
+                                                  "|".join([n for n in names if len(n) > 0]),
+                                                  basicInfo["origin"]]
 
-        for org, URL in basicInfo.items():
+        for org, URL in parse_recognition(recognitionInfoRaw).items():
             orgdict = approval_data.get(org, dict())
-            orgdict["breed name"] = URL
+            orgdict[basicInfo["breed name"]] = URL
             approval_data[org] = orgdict
 
         # Need to integrate recognition from FCI
         i+=1
-        break
-    idog_out = pd.DataFrame.from_dict(breed_summary, orient='index',
+
+    idog_out = pd.DataFrame.from_dict(breed_summary,
+                                      orient='index',
                                       columns=["Breed code", "Breed code source",
-                                               "synonyms"])
-    print(idog_out)
+                                               "Synonyms", "Country of Origin"])
+
+    # For each breed organization in the
+    for breed_org, rec_breeds in approval_data.items():
+        org_df = pd.DataFrame.from_dict(rec_breeds,
+                                        orient='index',
+                                        columns=["Source of recognition status"])
+
+        org_data = idog_out.join(org_df, how="right")
+        org_data.to_csv("rawdata/" + breed_org + ".tsv", sep='\t')
