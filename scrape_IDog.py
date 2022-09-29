@@ -22,21 +22,27 @@ def parse_fields(text):
     return entry
 
 def parse_list(text):
-    """Use spacy to identify items in a list separated by punctuation"""
-    print(parsed_doc)
-    items = list()
-    punc = [i for i in range(len(parsed_doc)) if parsed_doc[i].pos_ == "PUNCT"]
-    if len(punc) == 0:
-        return [parsed_doc]
+    """Identify items in a list separated by punctuation. iDog seems to use commas UNTIL
+    it encounters a name with a comma, and then it switched to semicolons. I coded this pattern here"""
+
+    if text is None:
+        return []
+
+    text = text.replace(" or ", ", ")
+    if ';' in text:
+        split_semi = text.split(";")
+        cleaned_items = list()
+        mixed_list = split_semi[0]
+        while mixed_list.count(",") > 1:
+            new_item = mixed_list.split(",")[0]
+            cleaned_items.append(new_item.strip())
+            mixed_list = mixed_list.replace(new_item + ",", "")
+        cleaned_items.append(mixed_list.strip())
+        return cleaned_items + [name.strip() for name in split_semi[1:]]
+
     else:
-        start = 0
-        for pmarkindex in punc:
-            items.append(parsed_doc[start:pmarkindex])
-            start = pmarkindex + 1
-        if start < len(parsed_doc):
-            items.append(parsed_doc[start:])
-        print(items)
-        #return entry
+        return [name.strip() for name in text.split(',')]
+
 
 def identifyFields(fieldIDs, text):
     """Extract basic breed information from below photo (ad hoc)
@@ -87,7 +93,7 @@ if __name__ == '__main__':
     approval_data = dict()
 
     # Iterate through entries in iDog database
-    i = 2
+    i = 5
     while i != 0 and i < 10:
         url = "https://ngdc.cncb.ac.cn/idog/breed/getBreedDetail.action?breedId=" + str(i)
         breedData = retrieve_html(url)
@@ -102,9 +108,8 @@ if __name__ == '__main__':
         if basicInfo is None:
             i = 0
             continue
-        parse_list(basicInfo["common name"])
-        print(parse_list(basicInfo["other name"]))
-        exit(0)
+        names = parse_list(basicInfo["common name"]) + parse_list(basicInfo["other name"])
+        print(names)
 
         # Now extract iDog info
         detailInfoRaw = breedData.find("div", {"class": "col-xs-12 col-sm-7"}).text
@@ -113,9 +118,9 @@ if __name__ == '__main__':
         recognitionInfoRaw = breedData.find("div", {"class": "table-responsive"})
         basicInfo["recognition"] = parse_recognition(recognitionInfoRaw)
 
-        breed_summary[basicInfo["breed name"]] = [
-            basicInfo['iDog identifier'], url, basicInfo["other name"] + "," + basicInfo["common name"]
-        ]
+        breed_summary[basicInfo["breed name"]] = [basicInfo['iDog identifier'], url,
+                                                  "| ".join([n for n in names if len(n) > 0])]
+
         for org, URL in basicInfo.items():
             orgdict = approval_data.get(org, dict())
             orgdict["breed name"] = URL
@@ -123,6 +128,7 @@ if __name__ == '__main__':
 
         # Need to integrate recognition from FCI
         i+=1
+        break
     idog_out = pd.DataFrame.from_dict(breed_summary, orient='index',
                                       columns=["Breed code", "Breed code source",
                                                "synonyms"])
