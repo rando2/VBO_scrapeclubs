@@ -137,4 +137,4 @@ if __name__ == '__main__':
                                         columns=["Source of recognition status"])
 
         org_data = idog_out.join(org_df, how="right")
-        org_data.to_csv("rawdata/" + breed_org + ".tsv", sep='\t')
+        org_data.to_csv("rawdata/" + breed_org + ".tsv", sep='\t', index_label="Breed")
