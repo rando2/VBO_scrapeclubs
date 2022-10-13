@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+from fuzzywuzzy import fuzz
 
 def retrieve_html(URL):
     # Pulls HTML from specified source and parses with bs4

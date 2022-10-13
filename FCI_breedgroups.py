@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import spacy
-import re
+from FCIFunctions import parse_rec_breed
 import sys
 
 def retrieve_html(URL):
@@ -22,28 +22,32 @@ def strip_numbered_list(text):
     entry = parsed_doc[parts.index("PUNCT") + 1:].text_with_ws
     return entry
 
+
 if __name__ == '__main__':
     url, group = sys.argv[1:]
     url_base = 'https://www.fci.be'
     pageContent = retrieve_html(url_base + url)
     fullApproval = dict()
     for ultag in pageContent.find_all('ul', {'class': "pays"}):
-        country = ""
+        #country = ""
         for litag in ultag.find_all('li'):
             country = strip_numbered_list(litag.find('span').text)
             breeds = litag.find("div", {"class": "races"})
             for tdtag in breeds.find_all('td'):
                 link = tdtag.find(href=True)
+                print(tdtag)
+                exit(0)
                 if link:
-                    # The names are structured as DOGNAME (##) (ALT NAME)
-                    nameInfo = link.text
-                    dogInfo = [i.strip() for i in re.findall(r'[^\(\)]*', nameInfo) if re.match(r'\S+', i) is not None]
-                    if len(dogInfo) == 2:
-                        dogInfo.append("")
-                    dogInfo.append("https://www.fci.be" + link["href"])
-                    fullApproval[dogInfo[0]] = [country] + dogInfo[1:]
+                    dogInfo = parse_rec_breed(link)
+                    fullApproval[dogInfo[0].title()] = [country.title()] + \
+                                                       dogInfo[1:] + \
+                                                       [group, "Definitive"]
 
+    for key, value in fullApproval.items():
+        print(key, "|", " | ".join(value))
     df = pd.DataFrame.from_dict(fullApproval, orient='index', columns=["Country of Origin", "FCI Number", "Synonyms",
-                                                                       "Source of Recognition Status."])
-    df.to_csv("rawdata/FCI_fullrecognition_" + group.split()[0] + ".tsv", sep='\t', index_label="Breed")
+                                                                       "Source of Recognition Status",
+                                                                       "Breed Group (FCI)",
+                                                                       "FCI Recognition Status"])
+    df.to_csv("rawdata/FCI_fullrecognition_" + group + ".tsv", sep='\t', index_label="Breed")
     print("Wrote TSV for FCI {0}".format(group))
