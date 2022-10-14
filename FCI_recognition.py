@@ -28,6 +28,7 @@ if __name__ == '__main__':
                                                                       groupName.split()[0])
         print(run_command)
         os.system(run_command)
+        exit(0)
 
     # Find provisional breeds
     provDF = dict()
