@@ -3,7 +3,7 @@ import os
 from bs4 import BeautifulSoup
 import pandas as pd
 import spacy
-from FCIFunctions import parse_rec_breed
+from scrapeFunctions import parse_FCI_breed
 
 def retrieve_html(URL):
     """Pulls HTML from IDog and identify the block containing breed info based on
@@ -28,27 +28,28 @@ if __name__ == '__main__':
                                                                       groupName.split()[0])
         print(run_command)
         os.system(run_command)
-        exit(0)
 
     # Find provisional breeds
     provDF = dict()
     provBreeds = pageContent.find("div", {"class": "races"})
     for tdtag in provBreeds.find_all('td', {"class": "race"}):
         link = tdtag.find(href=True)
-        dogInfo = parse_rec_breed(link)
+        dogInfo = parse_FCI_breed(link)
 
         provDogPage = retrieve_html(dogInfo[3])
         country = provDogPage.find("span", {"id": "ContentPlaceHolder1_PaysOrigineLabel"}).text
         group = provDogPage.find('a', {"id": "ContentPlaceHolder1_GroupeHyperLink"}).text
         group = group.split("-")[1].strip()
-        provDF[dogInfo[0].title()] = [country.title()] + [x.title() for x in dogInfo[1:]] + [group, "Provisional"]
+        provDF[dogInfo[0].title()] = [country.title(), ""] + \
+                                     [x.title() for x in dogInfo[1:]] + \
+                                     [group, "Provisional"]
 
-    df = pd.DataFrame.from_dict(provDF, orient='index', columns=["Country of Origin",
+    df = pd.DataFrame.from_dict(provDF, orient='index', columns=["Country of Origin", "Variety"
                                                                  "FCI Number", "Synonyms",
                                                                  "Source of Recognition Status",
                                                                  "Breed Group (FCI)",
                                                                  "FCI Recognition Status"])
-    df.to_csv("rawdata/FCI_provrecognition.tsv", sep='\t', index_label="Breed")
+    df.to_csv("rawdata/FCI/FCI_provrecognition.tsv", sep='\t', index_label="Breed")
     print("Wrote TSV for FCI provisionally recognized breeds")
 # combine all tsvs and add "definitive" vs
 

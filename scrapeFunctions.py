@@ -1,15 +1,18 @@
 import re
+from bs4 import BeautifulSoup
+import requests
 
-def parse_FCI_names(link):
-    # The names are structured as DOGNAME (##) (ALT NAME)
-    name_info = link.text
-    dog_info = [i.strip() for i in re.findall(r'[^\(\)]*', name_info) if re.match(r'\S+', i) is not None]
-    if len(dog_info) == 2:
-        dog_info.append("")
-    dog_info.append("https://www.fci.be" + link["href"])
-    return dog_info
+def retrieve_html(URL):
+    """Pulls HTML from IDog and identify the block containing breed info based on
+    div tag (ad hoc)
+    Input: string
+    Returns: string"""
+    # To do: streamline this function across whole project
+    page = requests.get(URL)
+    soup = BeautifulSoup(page.content, "html.parser")
+    return soup
 
-def parse_rec_breed(link):
+def parse_FCI_breed(link):
     # The names are structured as DOGNAME (##) (ALT NAME)
     # There can be extraneous parentheses in the names, so split based on the ID #
     id_match = re.search(r'\([0-9]+\)', link.text)
@@ -19,7 +22,6 @@ def parse_rec_breed(link):
         alt_name = link.text[bounds[1]:].strip()[1:-1]
     except AttributeError:
         alt_name = ""
-    print(breed, id_match.group()[1:-1], alt_name.title(), "https://www.fci.be" + link["href"])
     return {"breed": breed,
             "number": id_match.group()[1:-1],
             "synonyms": alt_name.title(),

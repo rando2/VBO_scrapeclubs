@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import spacy
-from FCIFunctions import parse_rec_breed
+from scrapeFunctions import parse_FCI_breed
 from collections import OrderedDict
 import sys
 
@@ -36,32 +36,33 @@ if __name__ == '__main__':
             country = strip_numbered_list(litag.find('span').text)
             country_varieties = litag.find("div", {"class": "races"})
             breeds = OrderedDict()
-            varieties = dict()
             for breeds_and_var in country_varieties.find_all('td'):
                 # If it's a breed row, it will be a link. If it's a variety, it will just
                 # be text. Therefore, test if it's a link to determine what kind of row
                 # we are looking at
                 link = breeds_and_var.find(href=True)
                 if link is not None:
-                    breedInfo = parse_rec_breed(link)
-                    breeds[breedInfo[breed]] = breedInfo
+                    breedInfo = parse_FCI_breed(link)
+                    breedInfo["varieties"] = list()
+                    breeds[breedInfo["breed"]] = breedInfo
                 else:
                     breed = list(breeds.keys())[-1]
                     for var in breeds_and_var.find_all("td", {"class" : "variete"}):
-                        var_list = varieties.get(breed, list())
-                        varieties[breed] = var_list + [strip_numbered_list(var.find('span').text)]
+                        breeds[breed]["varieties"].append(strip_numbered_list(var.find('span').text))
 
-            for breed in list(breeds.keys()):
-                if breed in varieties.keys():
-                    for variety in varieties[breed]:
-                        continue
-                        #fullApproval.loc[len(fullApproval.index)] = [breed.title(), variety.title(), country.title()] + \
-                        #                 breeds[breed][1:] + \
-                        #                 [group, "Definitive"]
+            for breed, breedInfo in breeds.items():
+                if len(breedInfo["varieties"]) > 0:
+                    for variety in breedInfo["varieties"]:
+                        fullApproval.loc[len(fullApproval.index)] = [breed.title(), variety.title(),
+                                                                     country.title(), breedInfo["number"],
+                                                                     breedInfo["synonyms"], breedInfo["url"],
+                                                                     group, "Definitive"]
                 else:
-                    continue
-                    #fullApproval.loc[len(fullApproval.index)] = [breed.title(), "", country.title()] + \
-                    #                 breeds[breed][1:] + \
-                    #                 [group, "Definitive"]
-    fullApproval.to_csv("rawdata/FCI_fullrecognition_" + group + ".tsv", sep='\t', index_label="Breed", index=False)
+                    fullApproval.loc[len(fullApproval.index)] = [breed.title(), "",
+                                                                     country.title(), breedInfo["number"],
+                                                                     breedInfo["synonyms"], breedInfo["url"],
+                                                                     group, "Definitive"]
+
+    fullApproval.to_csv("rawdata/FCI/FCI_fullrecognition_" + group + ".tsv", sep='\t',
+                        index=False)
     print("Wrote TSV for FCI {0}".format(group))
