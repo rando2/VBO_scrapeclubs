@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from fuzzywuzzy import fuzz
 import pandas as pd
 import spacy
+import json
 
 def retrieve_html(URL):
     """Pulls HTML from IDog and identify the block containing breed info based on
@@ -91,7 +92,7 @@ if __name__ == '__main__':
 
     # Iterate through entries in iDog database
     i = 1
-    while i != 0 and i < 11: # < is just for testing to keep the dataset small-ish
+    while i != 0: # < is just for testing to keep the dataset small-ish
         url = "https://ngdc.cncb.ac.cn/idog/breed/getBreedDetail.action?breedId=" + str(i)
         breedData = retrieve_html(url)
 
@@ -122,7 +123,12 @@ if __name__ == '__main__':
             orgdict[basicInfo["breed name"]] = URL
             approval_data[org] = orgdict
 
-        # Need to integrate recognition from FCI
+        if i % 10 == 0:
+            print(i)
+            with open('tmp/idog_processing_breed.json', 'w') as outfile:
+                outfile.write(json.dumps(breed_summary))
+            with open('tmp/idog_processing_approval.json', 'w') as outfile:
+                outfile.write(json.dumps(approval_data))
         i+=1
 
     idog_out = pd.DataFrame.from_dict(breed_summary,
@@ -130,7 +136,8 @@ if __name__ == '__main__':
                                       columns=["Breed code", "Breed code source",
                                                "Synonyms", "Country of Origin"])
 
-    # For each breed organization in the
+
+    # For each breed organization in the table
     for breed_org, rec_breeds in approval_data.items():
         org_df = pd.DataFrame.from_dict(rec_breeds,
                                         orient='index',

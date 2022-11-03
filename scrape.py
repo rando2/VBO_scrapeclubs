@@ -79,6 +79,6 @@ def get_IDog():
 
 
 if __name__ == '__main__':
-    #breeds = pd.concat([get_AKC(), get_UKC(), get_SKK()])
-    #breeds.to_csv("scraped_breed_data.csv")
-    get_IDog()
+    breeds = pd.concat([get_AKC(), get_UKC(), get_SKK()])
+    breeds.to_csv("rawdata/scraped_breed_data.csv")
+    #get_IDog()
