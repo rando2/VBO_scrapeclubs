@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+from fuzzywuzzy import fuzz
 
 def retrieve_html(URL):
     # Pulls HTML from specified source and parses with bs4
@@ -78,6 +79,6 @@ def get_IDog():
 
 
 if __name__ == '__main__':
-    #breeds = pd.concat([get_AKC(), get_UKC(), get_SKK()])
-    #breeds.to_csv("scraped_breed_data.csv")
-    get_IDog()
+    breeds = pd.concat([get_AKC(), get_UKC(), get_SKK()])
+    breeds.to_csv("rawdata/scraped_breed_data.csv", index_label="Breed")
+    #get_IDog()
